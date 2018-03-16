@@ -6,9 +6,8 @@ class: center, middle, inverse
 ### Heudiconv 2018
 
 ---
-name: content
-class: center, middle
-layout: false
+class: middle
+layout: true
 
 ## Prerequisites
 
@@ -21,7 +20,7 @@ layout: false
 This tutorial will focus on the conversion of DICOMs to BIDS format using a public scan.
 If you wish to follow along, these DICOMs can downloaded using datalad.
 
-```
+```bash
 docker run -it --rm -v /local/path/to/store/dicoms:/dicoms \
 --entrypoint=bash nipy/heudiconv:latest
 
@@ -29,13 +28,11 @@ docker run -it --rm -v /local/path/to/store/dicoms:/dicoms \
 source activate neuro && cd /dicoms
 git clone http://datasets.datalad.org/dicoms/dartmouth-phantoms/PHANTOM1_3/.git
 cd PHANTOM1_3
-datalad get -J6 YAROSLAV_DBIC-TEST1/ #ensure all the data is downloaded for the demo to work!
+datalad get -J6 YAROSLAV_DBIC-TEST1/
+#ensure all the data is downloaded for the demo to work!
 exit
 ```
 
----
-class: middle
-layout: true
 ---
 
 ### Step 1: Dry Pass
@@ -191,7 +188,7 @@ for idx, s in enumerate(seqinfo): # each row of dicominfo.tsv
 ### Handling multiple runs
 
 ```python
-for idx, s in enumerate(seqinfo): # each row of dicominfo.txt
+for idx, s in enumerate(seqinfo): # each row of dicominfo.tsv
     if (s.dim3 == 176) and (s.dim4 == 1) and ('t1' in s.protocol_name):
       info[t1w] = [s.series_id] # assign if a single scan meets criteria
     if (11 <= s.dim3 <= 22) and (s.dim4 == 1) and ('dti' in s.protocol_name):
