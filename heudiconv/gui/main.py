@@ -1,23 +1,25 @@
+#!/usr/bin/env python
+
+import os
 import os.path as op
-from tkinter import filedialog
 from tkinter import (Tk, StringVar, IntVar, filedialog,
                      S, W, BOTH, X, LEFT, RIGHT, CENTER, SUNKEN,
-                     Label, Entry, Button, Radiobutton, Frame)
-
+                     Label, Entry, Button, Radiobutton, Frame, Toplevel)
 from heudiconv.utils import get_known_heuristics_with_descriptions as heuristics
 
 class MainApp(object):
 
-    def __init__(self, master, title="HeuDiConv", window_size='250x500'):
+    def __init__(self, master, title="HeuDiConv", window_size='250x550', **kwargs):
         self.master = master
         master.title(title)
         master.geometry(window_size)
         # master.iconbitmap(/path/to/img) # to get rid of sketchy ? icon
-        self.heuristics = list(heuristics().keys())
         self.mainWindow(master)
 
     def mainWindow(self, master):
         # GUI variables
+        # TODO: outdir + bids + minmeta
+        self.heuristics = list(heuristics().keys())
         self.dcmdir = StringVar()
         self.heuristic = StringVar()
         self.process = IntVar(value=999) # valid values: 0, 1, 2
@@ -112,34 +114,84 @@ class MainApp(object):
 
 
     def fix_style(self):
-        self.run_button.pack_forget()
-        self.run_button.pack(side=LEFT, expand=True, fill=X, anchor=S)
-        self.close_button.pack_forget()
-        self.close_button.pack(side=RIGHT, expand=True, fill=X, anchor=S)
+        if (getattr(self, "run_button", None) and
+                getattr(self, "close_button", None)):
+            self.run_button.pack_forget()
+            self.run_button.pack(side=LEFT, expand=True, fill=X, anchor=S)
+            self.close_button.pack_forget()
+            self.close_button.pack(side=RIGHT, expand=True, fill=X, anchor=S)
         return
 
 
     def _run(self):
         """Runs based on submission requests"""
-        # debug
-        # print(self.dcmdir_text.get(), self.process.get(), self.builtins.get())
-        if not self.dcmdir.get():
+        # catch some run errors
+        convert = "dcm2niix"
+        self._dcmdir = self.dcmdir.get()
+        self._process = self.process.get()
+        self._builtins = self.builtins.get()
+        self._heuristic = self.heuristic.get()
+
+        if not self._dcmdir:
             print("No DICOM directory specified")
             return
-
-        if self.process.get() == 999:
+        elif not op.exists(self._dcmdir):
+            print("DICOM directory not found")
+            return
+        elif self._process == 999:
             print("Heuristic option not specified")
             return
-
-        if self.process.get() == 2 and self.builtins.get() == 999:
-            print("Builtin heuristic not specified")
+        elif self._process == 1 and not op.exists(self._heuristic):
+            print("Heuristic not found")
+            return
+        elif self._process == 2 and self._builtins == 999:
             return
 
-        return
+        # search for files
+        self._files = self.search_files(self._dcmdir)
+        if not self._files:
+            print("No files found")
+            return
+        else:
+            print("Number of files found: %d" % len(self._files))
+
+        # generate heuristic
+        if self._process == 0:
+            convert = "none"
+            self._heuristic = 'convertall'
+
+        elif self._process == 2:
+            if self._builtins == 999:
+                print("Builtin heuristic not specified")
+                return
+            self._heuristic = self.heuristics[self._builtins]
+
+        from heudiconv.cli.run import main as runner
+        # TODO: add additional arguments
+        args = (['--files'] + self._files +
+                ['-c', convert,
+                 '-f ', self._heuristic])
+        print(' '.join(args))
+        # runner(args)
+
+        # TODO: if generating heuristic, run again with newly created H
+        if convert == "none":
+            from heudiconv.gui.hmaker import HeuristicGenie
+            hwindow = Tk()
+            dicominfo = 2  # replace with dicominfo.tsv
+            happ = HeuristicGenie(hwindow, dicominfo)
+            hwindow.mainloop()
+        self.master.quit()
+
+
+    def search_files(self, dirpath):
+        return next(os.walk(dirpath))[2]
 
 
     def _clear_frame(self):
-        self.frame.pack_forget()
+        if getattr(self, 'frame'):
+            self.frame.pack_forget()
+        return
 
 
 def main():
