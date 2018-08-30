@@ -145,7 +145,7 @@ class MainApp(object):
 
         else:
             self.frame.pack_forget()
-            self.builtins.set(None)
+            self.builtins.set(999)
         return
 
 
@@ -227,12 +227,17 @@ class MainApp(object):
             from heudiconv.gui.hmaker import HeuristicGenie
             hwindow = Tk()
             dicominfo = 2  # replace with dicominfo.tsv
-            happ = HeuristicGenie(hwindow, dicominfo)
+            happ = HeuristicGenie(hwindow, dicominfo) # extract output heuristic from this
             hwindow.mainloop()
+
         self.master.quit()
 
 
     def search_files(self, dirpath):
+        """Finds files in a given path
+
+        TODO: add option for further search depth
+        """
         return next(os.walk(dirpath))[2]
 
 
