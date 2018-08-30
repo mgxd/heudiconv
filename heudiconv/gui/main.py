@@ -2,14 +2,16 @@
 
 import os
 import os.path as op
+from functools import partial
 from tkinter import (Tk, StringVar, IntVar, filedialog,
                      S, W, BOTH, X, LEFT, RIGHT, CENTER, SUNKEN,
-                     Label, Entry, Button, Radiobutton, Frame, Toplevel)
+                     Label, Entry, Button, Radiobutton, Frame, Checkbutton)
+
 from heudiconv.utils import get_known_heuristics_with_descriptions as heuristics
 
 class MainApp(object):
 
-    def __init__(self, master, title="HeuDiConv", window_size='250x550', **kwargs):
+    def __init__(self, master, title="HeuDiConv", window_size='250x700', **kwargs):
         self.master = master
         master.title(title)
         master.geometry(window_size)
@@ -20,10 +22,13 @@ class MainApp(object):
         # GUI variables
         # TODO: outdir + bids + minmeta
         self.heuristics = list(heuristics().keys())
-        self.dcmdir = StringVar()
+        self.dcmdir = StringVar(value=os.getcwd())
         self.heuristic = StringVar()
         self.process = IntVar(value=999) # valid values: 0, 1, 2
         self.builtins = IntVar(value=999) # valid values: 0 - len(self.heuristics)
+        self.outdir = StringVar(value=os.getcwd())
+        self.bids = IntVar()
+        self.minmeta = IntVar()
 
         self.info = Label(master,
                           text="Heuristic DICOM Converter",
@@ -36,20 +41,21 @@ class MainApp(object):
         self.dcm_entry = Entry(master, textvariable=self.dcmdir)
         self.dcm_entry.pack(fill=BOTH)
 
-        self.dir_button = Button(master, text="Browse", command=self.get_dcmdir)
+        self.dir_button = Button(master,
+                                 text="Browse",
+                                 command=partial(self.set_dir, self.dcmdir))
         self.dir_button.pack(anchor=W)
 
         self.label2 = Label(master, text="Step 2: Conversion heuristic")
         self.label2.pack(anchor=W, pady=10)
 
         self.heuristic_entry = Entry(master, textvariable=self.heuristic)
-
         self.heuristic_entry.pack(fill=BOTH)
 
         self.use_new = Radiobutton(master,
                                    text="Generate new heuristic",
                                    variable=self.process,
-                                   command=self._clear_frame,
+                                   command=self._clear_builtins,
                                    value=0)
         self.use_new.pack(anchor=W)
 
@@ -78,6 +84,35 @@ class MainApp(object):
                                                        value=i))
             self.builtin_heuristics[i].pack(anchor=W)
 
+
+        self.frame_bot = Frame()
+        self.frame_bot.pack(fill=BOTH)
+
+        self.label3 = Label(self.frame_bot, text="Step 3: Output directory (CWD)")
+        self.label3.pack(anchor=W, pady=10)
+
+        self.outdir_entry = Entry(self.frame_bot, textvariable=self.outdir)
+        self.outdir_entry.pack(fill=BOTH)
+
+        self.outdir_button = Button(self.frame_bot,
+                                    text="Change",
+                                    command=partial(self.set_dir, self.outdir))
+        self.outdir_button.pack(anchor=W)
+
+        self.label4 = Label(self.frame_bot, text="Step 4: Additional options")
+        self.label4.pack(anchor=W, pady=10)
+
+        # bids, minmeta
+        self.bids_button = Checkbutton(self.frame_bot,
+                                       text="BIDS conversion",
+                                       variable=self.bids)
+        self.bids_button.pack(anchor=W)
+
+        self.minmeta_button = Checkbutton(self.frame_bot,
+                                          text="Condense DICOM metadata",
+                                          variable=self.minmeta)
+        self.minmeta_button.pack(anchor=W)
+
         self.run_button = Button(master,
                                  text="Run",
                                  command=self._run)
@@ -85,13 +120,13 @@ class MainApp(object):
         self.fix_style()
 
 
-    def get_dcmdir(self):
-        self.dcmdir.set(filedialog.askdirectory())
+    def set_dir(self, obj):
+        obj.set(filedialog.askdirectory())
         return
 
 
     def get_heuristic(self):
-        self._clear_frame()
+        self._clear_builtins()
         self.heuristic.set(filedialog.askdirectory())
         return
 
@@ -107,6 +142,7 @@ class MainApp(object):
         if not displayed:
             self.frame.pack(anchor=CENTER, pady=10)
             self.fix_style()
+
         else:
             self.frame.pack_forget()
             self.builtins.set(None)
@@ -114,6 +150,9 @@ class MainApp(object):
 
 
     def fix_style(self):
+        if getattr(self, "frame_bot", None):
+            self.frame_bot.pack_forget()
+            self.frame_bot.pack(fill=BOTH)
         if (getattr(self, "run_button", None) and
                 getattr(self, "close_button", None)):
             self.run_button.pack_forget()
@@ -131,6 +170,7 @@ class MainApp(object):
         self._process = self.process.get()
         self._builtins = self.builtins.get()
         self._heuristic = self.heuristic.get()
+        self._outdir = self.outdir.get()
 
         if not self._dcmdir:
             print("No DICOM directory specified")
@@ -170,9 +210,17 @@ class MainApp(object):
         # TODO: add additional arguments
         args = (['--files'] + self._files +
                 ['-c', convert,
-                 '-f ', self._heuristic])
-        print(' '.join(args))
-        # runner(args)
+                 '-f', self._heuristic,
+                 '-o', self._outdir])
+
+        if self.bids.get() == 1:
+            args.append('-b')
+
+        if self.minmeta.get() == 1:
+            args.append('--minmeta')
+
+        # print(' '.join(args))
+        runner(args)
 
         # TODO: if generating heuristic, run again with newly created H
         if convert == "none":
@@ -188,7 +236,7 @@ class MainApp(object):
         return next(os.walk(dirpath))[2]
 
 
-    def _clear_frame(self):
+    def _clear_builtins(self):
         if getattr(self, 'frame'):
             self.frame.pack_forget()
         return
