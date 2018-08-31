@@ -3,9 +3,8 @@
 import os
 import os.path as op
 from functools import partial
-from tkinter import (Tk, StringVar, IntVar, filedialog,
-                     S, W, BOTH, X, LEFT, RIGHT, CENTER, SUNKEN,
-                     Label, Entry, Button, Radiobutton, Frame, Checkbutton)
+from tkinter import (Tk, StringVar, IntVar, filedialog, Label,
+                     Entry, Button, Radiobutton, Frame, Checkbutton)
 
 from heudiconv.utils import get_known_heuristics_with_descriptions as heuristics
 
@@ -33,48 +32,48 @@ class MainApp(object):
         self.info = Label(master,
                           text="Heuristic DICOM Converter",
                           font=("Sytem", 11, "bold"))
-        self.info.pack(anchor=CENTER, pady=10)
+        self.info.pack(anchor='center', pady=10)
 
         self.label1 = Label(master, text="Step 1: DICOM directory path")
-        self.label1.pack(anchor=W, pady=10)
+        self.label1.pack(anchor='w', pady=10)
 
         self.dcm_entry = Entry(master, textvariable=self.dcmdir)
-        self.dcm_entry.pack(fill=BOTH)
+        self.dcm_entry.pack(fill='both')
 
         self.dir_button = Button(master,
                                  text="Browse",
                                  command=partial(self.set_dir, self.dcmdir))
-        self.dir_button.pack(anchor=W)
+        self.dir_button.pack(anchor='w')
 
         self.label2 = Label(master, text="Step 2: Conversion heuristic")
-        self.label2.pack(anchor=W, pady=10)
+        self.label2.pack(anchor='w', pady=10)
 
         self.heuristic_entry = Entry(master, textvariable=self.heuristic)
-        self.heuristic_entry.pack(fill=BOTH)
+        self.heuristic_entry.pack(fill='both')
 
         self.use_new = Radiobutton(master,
                                    text="Generate new heuristic",
                                    variable=self.process,
                                    command=self._clear_builtins,
                                    value=0)
-        self.use_new.pack(anchor=W)
+        self.use_new.pack(anchor='w')
 
         self.use_custom = Radiobutton(master,
                                       text="Use custom heuristic",
                                       variable=self.process,
                                       command=self.get_heuristic,
                                       value=1)
-        self.use_custom.pack(anchor=W)
+        self.use_custom.pack(anchor='w')
 
         self.use_builtin = Radiobutton(master,
                                        text="Use builtin heuristic",
                                        variable=self.process,
                                        command=self.toggle_heuristics,
                                        value=2)
-        self.use_builtin.pack(anchor=W)
+        self.use_builtin.pack(anchor='w')
 
         # frame to house built-in heuristics, hidden unless chosen
-        self.frame = Frame(bd=1, relief=SUNKEN)
+        self.frame = Frame(bd=1, relief='sunken')
 
         self.builtin_heuristics = []
         for i, heuristic in enumerate(self.heuristics):
@@ -82,22 +81,22 @@ class MainApp(object):
                                                        text=heuristic,
                                                        variable=self.builtins,
                                                        value=i))
-            self.builtin_heuristics[i].pack(anchor=W)
+            self.builtin_heuristics[i].pack(anchor='w')
 
 
         self.frame_bot = Frame()
-        self.frame_bot.pack(fill=BOTH)
+        self.frame_bot.pack(fill='both')
 
         self.label3 = Label(self.frame_bot, text="Step 3: Output directory (CWD)")
-        self.label3.pack(anchor=W, pady=10)
+        self.label3.pack(anchor='w', pady=10)
 
         self.outdir_entry = Entry(self.frame_bot, textvariable=self.outdir)
-        self.outdir_entry.pack(fill=BOTH)
+        self.outdir_entry.pack(fill='both')
 
         self.outdir_button = Button(self.frame_bot,
                                     text="Change",
                                     command=partial(self.set_dir, self.outdir))
-        self.outdir_button.pack(anchor=W)
+        self.outdir_button.pack(anchor='w')
 
         self.label4 = Label(self.frame_bot, text="Step 4: Additional options")
         self.label4.pack(anchor=W, pady=10)
@@ -106,12 +105,12 @@ class MainApp(object):
         self.bids_button = Checkbutton(self.frame_bot,
                                        text="BIDS conversion",
                                        variable=self.bids)
-        self.bids_button.pack(anchor=W)
+        self.bids_button.pack(anchor='w')
 
         self.minmeta_button = Checkbutton(self.frame_bot,
                                           text="Condense DICOM metadata",
                                           variable=self.minmeta)
-        self.minmeta_button.pack(anchor=W)
+        self.minmeta_button.pack(anchor='w')
 
         self.run_button = Button(master,
                                  text="Run",
@@ -140,7 +139,7 @@ class MainApp(object):
             displayed = False
 
         if not displayed:
-            self.frame.pack(anchor=CENTER, pady=10)
+            self.frame.pack(anchor='center', pady=10)
             self.fix_style()
 
         else:
@@ -165,7 +164,7 @@ class MainApp(object):
     def _run(self):
         """Runs based on submission requests"""
         # catch some run errors
-        convert = "dcm2niix"
+        converter = "dcm2niix"
         self._dcmdir = self.dcmdir.get()
         self._process = self.process.get()
         self._builtins = self.builtins.get()
@@ -197,7 +196,7 @@ class MainApp(object):
 
         # generate heuristic
         if self._process == 0:
-            convert = "none"
+            converter = "none"
             self._heuristic = 'convertall'
 
         elif self._process == 2:
@@ -209,7 +208,7 @@ class MainApp(object):
         from heudiconv.cli.run import main as runner
         # TODO: add additional arguments
         args = (['--files'] + self._files +
-                ['-c', convert,
+                ['-c', converter,
                  '-f', self._heuristic,
                  '-o', self._outdir])
 
