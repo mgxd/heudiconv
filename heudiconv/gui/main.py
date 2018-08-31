@@ -99,7 +99,7 @@ class MainApp(object):
         self.outdir_button.pack(anchor='w')
 
         self.label4 = Label(self.frame_bot, text="Step 4: Additional options")
-        self.label4.pack(anchor=W, pady=10)
+        self.label4.pack(anchor='w', pady=10)
 
         # bids, minmeta
         self.bids_button = Checkbutton(self.frame_bot,
