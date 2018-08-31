@@ -151,13 +151,13 @@ class MainApp(object):
     def fix_style(self):
         if getattr(self, "frame_bot", None):
             self.frame_bot.pack_forget()
-            self.frame_bot.pack(fill=BOTH)
+            self.frame_bot.pack(fill='both')
         if (getattr(self, "run_button", None) and
                 getattr(self, "close_button", None)):
             self.run_button.pack_forget()
-            self.run_button.pack(side=LEFT, expand=True, fill=X, anchor=S)
+            self.run_button.pack(side='left', expand=True, fill='x', anchor='s')
             self.close_button.pack_forget()
-            self.close_button.pack(side=RIGHT, expand=True, fill=X, anchor=S)
+            self.close_button.pack(side='right', expand=True, fill='x', anchor='s')
         return
 
 
