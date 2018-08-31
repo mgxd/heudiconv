@@ -4,15 +4,20 @@ import csv
 import platform
 import os.path as op
 # TODO: remove unused
-from tkinter import (Tk, StringVar, IntVar, filedialog, Canvas,
-                     N, S, E, W, BOTH, X, LEFT, RIGHT, CENTER, SUNKEN, END, BOTTOM,
-                     Label, Entry, Button, Radiobutton, Frame, Checkbutton, Scrollbar)
+from tkinter import (Tk, StringVar, IntVar, filedialog, Canvas, Label,
+                     Entry, Button, Radiobutton, Frame, Checkbutton, Scrollbar)
 
 from heudiconv.gui.main import MainApp
 
 MOUSEWHEEL = ["<MouseWheel>"]
 if platform.system().lower().startswith("linux"):
     MOUSEWHEEL = ["<Button-4>", "<Button-5>"]
+
+class InfoButton(Checkbutton, object):
+    """Checkbutton with IntVar variable attached"""
+    def __init__(self, var=0, **kwargs):
+        self.val= IntVar(value=var)
+        super(InfoButton, self).__init__(variable=self.val, **kwargs)
 
 
 class HeuristicGenie(MainApp):
@@ -26,66 +31,78 @@ class HeuristicGenie(MainApp):
         """Inherit from main GUI but increase size and add dicominfo property"""
         self.infofile = infofile
         self.dicominfo = self.read_infofile(self.infofile)
+        self.target_series = []
         super(HeuristicGenie, self).__init__(master, title, window_size, **kwargs)
 
 
     def mainWindow(self, master):
         self.gen_infoframe()
 
+        self.select_button = Button(master,
+                                    text="Generate Heuristic",
+                                    command=self._create_heuristic)
+        self.select_button.pack(side='left', expand=True, fill='x', anchor='s')
         self.close_button = Button(master, text="Exit", command=master.quit)
-        self.close_button.pack()
-        #self.label1.grid(row=1, column=1)
-
-        # self.listbox = Listbox(self.infoframe)
-        # self.listbox.pack(fill=BOTH)
-        #
-        # self.listbox.insert(END, self.dicominfo)
+        self.close_button.pack(side='right', expand=True, fill='x', anchor='s')
 
 
     def gen_infoframe(self):
-        self.infoframe = Frame(self.master, bd=1, relief=SUNKEN, width=300, height=300)
-        self.infoframe.pack()
+        self.canvasframe = Frame(self.master,
+                                 bd=1,
+                                 relief='sunken')
+        self.canvasframe.pack()
 
-        self.infocanvas = Canvas(self.infoframe, width=300, height=300, scrollregion=(0,0,500,500))
+        # TODO: adjust dynamically based on input
+        infocanvas = Canvas(self.canvasframe,
+                            width=450,
+                            height=450,
+                            scrollregion=(0,0,2300,2300))
+        self.bind_mousewheel(infocanvas)
 
-        self.bind_mousewheel()
+        scrollx = Scrollbar(self.canvasframe,
+                            orient='horizontal',
+                            command=infocanvas.xview)
+        scrollx.pack(side='bottom', fill='x')
 
-        self.infoscrollx = Scrollbar(self.infoframe,
-                                     orient='horizontal',
-                                     command=self.infocanvas.xview)
-        self.infoscrollx.pack(side='bottom', fill='x')
 
-        self.infoscrolly = Scrollbar(self.infoframe,
-                                     orient='vertical',
-                                     command=self.infocanvas.yview)
-        self.infoscrolly.pack(side='right', fill='y')
+        scrolly = Scrollbar(self.canvasframe,
+                            orient='vertical',
+                            command=infocanvas.yview)
+        scrolly.pack(side='right', fill='y')
 
-        self.infocanvas.configure(xscrollcommand=self.infoscrollx.set)
-        self.infocanvas.configure(scrollregion=self.infocanvas.bbox("all"))
+        infocanvas.configure(xscrollcommand=scrollx.set,
+                             yscrollcommand=scrolly.set,
+                             scrollregion=infocanvas.bbox("all"))
+        infocanvas.pack(side='left', expand=True, fill='both')
 
-        self.series_choices = []
+        infoframe = Frame(infocanvas)
+        infoframe.pack()
+        infocanvas.create_window((0, 0), window=infoframe, anchor='n')
+
         # TODO: make scrollable
+        self.series_choices = []
         row = 0
         for i, series in enumerate(self.dicominfo):
             col = 1
             if i >= 1:
                 # add tick box
-                self.series_choices.append(Checkbutton(self.infocanvas))
+                self.series_choices.append(InfoButton(master=infoframe))
                 self.series_choices[i-1].grid(row=row, column=col-1)
 
             for val in series:
-                label = Label(self.infocanvas, text=val)
+                label = Label(infoframe, text=val)
                 label.grid(row=row, column=col)
-                col += 1
+                col += 2
             row += 1
 
         # pack after everything
-        self.infocanvas.pack(side='left', expand=True)
+        # self.infocanvas.pack(side='left', expand=True, fill=BOTH)
 
-    def bind_mousewheel(self):
+    def bind_mousewheel(self, canvas):
         for but in MOUSEWHEEL:
             self.master.bind_all(but,
-                                 lambda event: self.infocanvas.xview_scroll(int(-1 * event.delta/200), "units"))
+                                 lambda event: canvas.yview_scroll(int(-1 * event.delta/200), "units"))
+
 
     def read_infofile(self, infofile):
         if not infofile or not op.exists(infofile):
@@ -93,6 +110,17 @@ class HeuristicGenie(MainApp):
         with open(infofile, 'rt') as fp:
             reader = csv.reader(fp, delimiter='\t')
             return [series for series in reader]
+
+
+    def _create_heuristic(self):
+        for i, opt in enumerate(self.series_choices):
+            if opt.val.get() == 1:
+                self.target_series.append(self.dicominfo[i+1])  # first is column names
+
+        for s in self.target_series:
+            print(s[2])
+
+        self.master.quit()
 
 def main():
     infofile = '/code/scratch/test/voice2/.heudiconv/voice969/info/dicominfo.tsv'
