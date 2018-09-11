@@ -1,22 +1,34 @@
 #!/usr/bin/env python
 
+import inspect
 import csv
 import platform
 import os.path as op
-# TODO: remove unused
+
 from tkinter import (Tk, StringVar, IntVar, filedialog, Canvas, Label,
                      Entry, Button, Radiobutton, Frame, Checkbutton, Scrollbar)
 
+import time
 from heudiconv.gui.main import MainApp
+import heudiconv.heuristics.template as tpl
 
-MOUSEWHEEL = ["<MouseWheel>"]
-if platform.system().lower().startswith("linux"):
-    MOUSEWHEEL = ["<Button-4>", "<Button-5>"]
+# MOUSEWHEEL = ["<MouseWheel>"]
+# if platform.system().lower().startswith("linux"):
+#     MOUSEWHEEL = ["<Button-4>", "<Button-5>"]
+
+BIDS_TYPES = {
+    "anat": ['T1w', 'T2w', 'T1rho', 'T1map', 'T2map', 'T2star', 'FLAIR',
+             'FLASH', 'PD', 'PDmap', 'PDT2', 'inplaneT1', 'inplaneT2',
+             'angio'],
+    "func": ['bold', 'sbref'],
+    "dwi": ['dwi', 'sbref'],
+    "fmap": ['phasediff', 'magnitude', 'fieldmap', 'epi', 'sbref'],
+}
 
 class InfoButton(Checkbutton, object):
     """Checkbutton with IntVar variable attached"""
-    def __init__(self, var=0, **kwargs):
-        self.val= IntVar(value=var)
+    def __init__(self, val=0, **kwargs):
+        self.val = IntVar(value=val)
         super(InfoButton, self).__init__(variable=self.val, **kwargs)
 
 
@@ -42,7 +54,7 @@ class HeuristicGenie(MainApp):
                                     text="Generate Heuristic",
                                     command=self._create_heuristic)
         self.select_button.pack(side='left', expand=True, fill='x', anchor='s')
-        self.close_button = Button(master, text="Exit", command=master.quit)
+        self.close_button = Button(master, text="Exit", command=master.destroy)
         self.close_button.pack(side='right', expand=True, fill='x', anchor='s')
 
 
@@ -50,14 +62,19 @@ class HeuristicGenie(MainApp):
         self.canvasframe = Frame(self.master,
                                  bd=1,
                                  relief='sunken')
-        self.canvasframe.pack()
+        self.canvasframe.pack(fill='both')
 
-        # TODO: adjust dynamically based on input
+        # properly size canvas
+        x, y = 3300, 450
+        lines = sum(1 for line in open(self.infofile)) - 20 # base case
+        if lines >= 0:
+            y += lines * 20.6
+
         infocanvas = Canvas(self.canvasframe,
                             width=450,
                             height=450,
-                            scrollregion=(0,0,2300,2300))
-        self.bind_mousewheel(infocanvas)
+                            scrollregion=(0,0,x,y))
+        # self.bind_mousewheel(infocanvas)
 
         scrollx = Scrollbar(self.canvasframe,
                             orient='horizontal',
@@ -77,7 +94,7 @@ class HeuristicGenie(MainApp):
 
         infoframe = Frame(infocanvas)
         infoframe.pack()
-        infocanvas.create_window((0, 0), window=infoframe, anchor='n')
+        infocanvas.create_window((0, 0), window=infoframe, anchor='nw')
 
         # TODO: make scrollable
         self.series_choices = []
@@ -92,16 +109,13 @@ class HeuristicGenie(MainApp):
             for val in series:
                 label = Label(infoframe, text=val)
                 label.grid(row=row, column=col)
-                col += 2
+                col += 1
             row += 1
 
-        # pack after everything
-        # self.infocanvas.pack(side='left', expand=True, fill=BOTH)
-
-    def bind_mousewheel(self, canvas):
-        for but in MOUSEWHEEL:
-            self.master.bind_all(but,
-                                 lambda event: canvas.yview_scroll(int(-1 * event.delta/200), "units"))
+    # def bind_mousewheel(self, canvas):
+    #     for but in MOUSEWHEEL:
+    #         self.master.bind_all(but,
+    #                              lambda event: canvas.yview_scroll(int(-1 * event.delta/200), "units"))
 
 
     def read_infofile(self, infofile):
@@ -113,12 +127,14 @@ class HeuristicGenie(MainApp):
 
 
     def _create_heuristic(self):
+        template = inspect.getsource(tpl).split('\n')
+
         for i, opt in enumerate(self.series_choices):
             if opt.val.get() == 1:
                 self.target_series.append(self.dicominfo[i+1])  # first is column names
 
         for s in self.target_series:
-            print(s[2])
+            print(s)
 
         self.master.quit()
 
