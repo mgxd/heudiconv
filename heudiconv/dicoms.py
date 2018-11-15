@@ -24,7 +24,7 @@ def group_dicoms_into_seqinfos(files, file_filter, dcmfilter, grouping):
       kept, False otherwise.
     dcmfilter : callable, optional
       If called on dcm_data and returns True, it is used to set series_id
-    grouping : {'studyUID', 'accession_number', None}, optional
+    grouping : {'studyUID', 'accession_number', all}, optional
         what to group by: studyUID or accession_number
     Returns
     -------
@@ -34,7 +34,7 @@ def group_dicoms_into_seqinfos(files, file_filter, dcmfilter, grouping):
     filegrp : dict
       `filegrp` is a dictionary with files groupped per each sequence
     """
-    allowed_groupings = ['studyUID', 'accession_number', None]
+    allowed_groupings = ['studyUID', 'accession_number', 'all', None]
     if grouping not in allowed_groupings:
         raise ValueError('I do not know how to group by {0}'.format(grouping))
     per_studyUID = grouping == 'studyUID'
@@ -91,7 +91,7 @@ def group_dicoms_into_seqinfos(files, file_filter, dcmfilter, grouping):
                 # verify that we are working with a single study
                 if studyUID is None:
                     studyUID = file_studyUID
-                elif not per_accession_number:
+                elif grouping not in ['accession_number', 'all']:
                     assert studyUID == file_studyUID, (
                     "Conflicting study identifiers found [{}, {}].".format(
                     studyUID, file_studyUID
@@ -121,8 +121,10 @@ def group_dicoms_into_seqinfos(files, file_filter, dcmfilter, grouping):
             # same = mw.is_same_series(mwgroup[idx])
             if mw.is_same_series(mwgroup[idx]):
                 # the same series should have the same study uuid
-                assert (mwgroup[idx].dcm_data.get('StudyInstanceUID', None)
-                        == file_studyUID)
+                if (mwgroup[idx].dcm_data.get('StudyInstanceUID', None) !=
+                        file_studyUID and grouping != 'all'):
+                    # complain
+                    raise AttributeError("DICOM StudyInstanceUID differs from studyUID")
                 ingrp = True
                 if series_id[0] >= 0:
                     series_id = (mwgroup[idx].dcm_data.SeriesNumber,

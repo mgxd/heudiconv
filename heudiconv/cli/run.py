@@ -205,7 +205,7 @@ def get_parser():
                         help='custom actions to be performed on provided '
                         'files instead of regular operation.')
     parser.add_argument('-g', '--grouping', default='studyUID',
-                        choices=('studyUID', 'accession_number'),
+                        choices=('studyUID', 'accession_number', 'all'),
                         help='How to group dicoms (default: by studyUID)')
     parser.add_argument('--minmeta', action='store_true',
                         help='Exclude dcmstack meta information in sidecar '
@@ -335,7 +335,8 @@ def process_args(args):
                         bids=args.bids,
                         seqinfo=seqinfo,
                         min_meta=args.minmeta,
-                        overwrite=args.overwrite,)
+                        overwrite=args.overwrite,
+                        grouping=args.grouping)
 
         lgr.info("PROCESSING DONE: {0}".format(
             str(dict(subject=sid, outdir=study_outdir, session=session))))
