@@ -122,9 +122,11 @@ def group_dicoms_into_seqinfos(files, file_filter, dcmfilter, grouping):
             if mw.is_same_series(mwgroup[idx]):
                 # the same series should have the same study uuid
                 if (mwgroup[idx].dcm_data.get('StudyInstanceUID', None) !=
-                        file_studyUID and grouping != 'all'):
-                    # complain
-                    raise AttributeError("DICOM StudyInstanceUID differs from studyUID")
+                        file_studyUID)
+                    if grouping != 'all'):
+                        # complain
+                        raise AttributeError("DICOM StudyInstanceUID differs from studyUID")
+                    lgr.warning("Different StudyInstanceUIDs found")
                 ingrp = True
                 if series_id[0] >= 0:
                     series_id = (mwgroup[idx].dcm_data.SeriesNumber,
