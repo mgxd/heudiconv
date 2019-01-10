@@ -2,39 +2,29 @@ name: inverse
 layout: true
 class: center, middle, inverse
 ---
-# Sample Conversion
-### Heudiconv 2018
+# Heudiconv
+### Coastal Coding 2019
 
 ---
 class: middle
 layout: true
+---
+## Heudi-what?
 
-## Prerequisites
-
-* Docker
-* Heudiconv image (`docker pull nipy/heudiconv:latest`)
+- `Heudiconv` is a Python library to facilitate conversion of DICOM files to NIfTI.
+- Highly customizable, but can be set conform to existing data standards (BIDS).
+- Integration with `DataLad` allows for easy versioning and sharing of data!
 
 ---
-## Before we start
+## Tutorial and Requirements
 
-This tutorial will focus on the conversion of DICOMs to BIDS format using a public scan.
-If you wish to follow along, these DICOMs can downloaded using datalad.
+- In this live tutorial, we will be pulling publicly available DICOM data and
+converting with `Heudiconv`.
 
-```bash
-docker run -it --rm -v /local/path/to/store/dicoms:/dicoms \
---entrypoint=bash nipy/heudiconv:latest
-
-# Inside container
-source activate neuro && cd /dicoms
-git clone http://datasets.datalad.org/dicoms/dartmouth-phantoms/PHANTOM1_3/.git
-cd PHANTOM1_3
-datalad get -J6 YAROSLAV_DBIC-TEST1/
-#ensure all the data is downloaded for the demo to work!
-exit
-```
+To ensure you can follow along, please check that you have:
+* Docker + `mgxd/heudiconv:cc19-demo` image
 
 ---
-
 ### Step 1: Dry Pass
 
 First, we will run a dry pass (no conversion), which will stack and group the DICOMs
