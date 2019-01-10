@@ -6,9 +6,8 @@ class: center, middle, inverse
 ### Coastal Coding 2019
 
 ---
-class: middle
-layout: true
----
+layout: false
+
 ## Heudi-what?
 
 - `Heudiconv` is a Python library to facilitate conversion of DICOM files to NIfTI.
@@ -92,7 +91,7 @@ Here are a few basic `heudiconv` flags to be familiar with:
  bids-validator /output/Halchenko/Yarik/950_bids_test4/
  ```
 
- ---
+---
 ### Custom Conversion
 
 - What if you are working with data that was not
@@ -358,6 +357,11 @@ def infotodict(seqinfo):
 heudiconv -d "/data/{subject}/*/*/*/*IMA" -s PHANTOM1_3 -f demo_heuristic.py -b -o /output2
 ```
 
+- You can also download the created heuristic with the command:
+
+```bash
+curl https://raw.githubusercontent.com/mgxd/heudiconv/coco2019/demo-heuristic.py -O
+```
 - Something missing? Double check your `heuristic` and `dicominfo.tsv`!
 
 ---
