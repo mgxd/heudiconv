@@ -111,6 +111,10 @@ RUN datalad install http://datasets.datalad.org/dicoms/dartmouth-phantoms/PHANTO
     datalad get -J4 PHANTOM1_3 && \
     datalad get -J4 phantom-1
 
+RUN curl -sL https://deb.nodesource.com/setup_10.x | bash -
+RUN apt-get install -y nodejs
+
+RUN npm install -g bids-validator@1.1.0
 
 ENTRYPOINT ["heudiconv"]
 
