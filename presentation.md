@@ -18,65 +18,117 @@ layout: true
 ---
 ## Tutorial and Requirements
 
-- In this live tutorial, we will be using publicly available DICOM data and
-converting with `Heudiconv`. The data comes preloaded in the Docker image, but
-can be fetched easily with `DataLad`.
+- In this live tutorial, we will be using publicly
+ available DICOM data and
+ converting with `Heudiconv`. The data comes
+ preloaded in the Docker image, but
+ can be fetched easily with `DataLad`.
 
-To ensure you can follow along, please check that you have:
+** To ensure you can follow along, please check
+ that you have:
 * Docker + `mgxd/heudiconv:cc19-demo` image
 
 ---
-### Step 1: Dry Pass
+### Setup
 
-First, we will run a dry pass (no conversion), which will stack and group the DICOMs
-into series.
+- By default, running the container will trigger a
+ `heudiconv` build. We will override this and enter
+ the container interactively with the following
+ command:
 
-```bash
-docker run --rm -it -v /path/to/dicoms:/data:ro \
--v /path/to/output/directory:/output nipy/heudiconv:latest
-...
+```
+docker run --rm -it --entrypoint=bash mgxd/heudiconv:cc19-demo
+```
+
+- To test you are in the proper environment, try
+ running the following commands
+
+```
+heudiconv --version;
+ls /examples;
 ```
 
 ---
-### Step 1: Dry Pass
+### Usage
 
-First, we will run a dry pass (no conversion), which will stack and group the DICOMs
-into series.
+Here are a few basic `heudiconv` flags to be familiar with:
 
-```bash
-docker run --rm -it -v /path/to/dicoms:/data:ro \
--v /path/to/output/directory:/output nipy/heudiconv:latest
--d /data/{subject}/YAROSLAV_DBIC-TEST1/*/*/*IMA -s PHANTOM1_3
-...
-```
+* First, pick one of these flags to input data
+  - `--files` : Files (tarballs, dicoms) or
+   directories containing files to process.
+  - `-d, --dicom_dir_template` : string path
+   to DICOMs. Requires "{subject}" formatting
+   within path.
+     - `-s, --subjects` : one or more subjects to
+     substitute to path in `--dicom_dir_template`
+
+* `-f, --heuristic` : Python script used to set
+  conversion rules.
+* `-o, --outdir` : Location to store output
+
+### Reproin - for the ~~lazy~~ easy converter
+
+- `Heudiconv` includes a variety of built-in
+ heuristics (`heudiconv --command heuristics`)
+
+- The [`reproin`](https://github.com/nipy/heudiconv/blob/master/heudiconv/heuristics/reproin.py) heuristic is an effort to automate
+ DICOM conversions straight to compliant (but not
+ complete) BIDS datasets*.
+  - Requires scanner sequences to be structured in
+   a particular format
 
 ---
-### Step 1: Dry Pass
+### Reproin - for the ~~lazy~~ easy converter
 
-First, we will run a dry pass (no conversion), which will stack and group the DICOMs
-into series.
+- Lets use some data that was already structured in
+ the reproin format
+
+ ```bash
+ heudiconv --files /examples/phantom-1 -f reproin -o /output --bids
+ ```
+
+- Check validity of the conversion
+ ```bash
+ bids-validator /output/Halchenko/Yarik/950_bids_test4/
+ ```
+
+ ---
+### Custom Conversion
+
+- What if you are working with data that was not
+ structured to `reproin` on the scanner?
+
+- We'll just have to make our own structure / rules!
+
+- We will run `heudiconv` twice:
+  - dry pass (no conversion), which will stack
+   and group the DICOMs into series. This step will
+   let us view information per series and define
+   rules.
+   - conversion, as we saw with the `reproin`
+
+---
+### Custom Conversion
 
 ```bash
-docker run --rm -it -v /path/to/dicoms:/data:ro \
--v /path/to/output/directory:/output nipy/heudiconv:latest
--d /data/{subject}/YAROSLAV_DBIC-TEST1/*/*/*IMA -s PHANTOM1_3
--f convertall -c none -o /output
+heudiconv -d "/examples/{subject}/*/*/*/*IMA" -s PHANTOM1_3 -c none -f convertall -o /output2
 ```
 
 Run the command!
 
 ---
-layout: false
 ### Sample conversion
 
-After running the command, there will be a hidden folder within the specified output directory `.heudiconv`.
+- After running the command, there will be a
+ hidden folder within output directory to keep track of metadata. `/output/.heudiconv/`.
 
-- Within `.heudiconv`, there will be a directory with your subject ID, and a subdirectory `info`. Inside this, you can see a `dicominfo.tsv` - we'll be using the information here to convert to a file structure (BIDS)
+- Within `.heudiconv`, there will be a directory
+ with your subject ID, and a subdirectory `info`. Inside this, you can see a `dicominfo.tsv` - we'll be using the information here to convert to a file structure (BIDS)
 
-- The full specifications for BIDS can be found [here](http://bids.neuroimaging.io/bids_spec1.0.1.pdf)
+- Let's visualize the `dicominfo`.
 
 ---
-### The heuristic file
+### Dive into a heuristic file
 
 ```python
 import os
@@ -95,6 +147,9 @@ def infotodict(seqinfo):
     subject: participant id
     seqitem: run number during scanning
     subindex: sub index within group
+    session: ses-[sessionID]
+    bids_subject_session_dir: BIDS subject/session directory
+    bids_subject_session_prefix: BIDS subject/session prefix
     """
 
     data = create_key('run{item:03d}')
@@ -102,9 +157,41 @@ def infotodict(seqinfo):
     info = {data: []}
 
     for s in seqinfo:
+        """
+        The namedtuple `s` contains the following fields:
+
+        * total_files_till_now
+        * example_dcm_file
+        * series_id
+        * dcm_dir_name
+        * unspecified2
+        * unspecified3
+        * dim1
+        * dim2
+        * dim3
+        * dim4
+        * TR
+        * TE
+        * protocol_name
+        * is_motion_corrected
+        * is_derived
+        * patient_id
+        * study_description
+        * referring_physician_name
+        * series_description
+        * sequence_name
+        * image_type
+        * accession_number
+        * patient_age
+        * patient_sex
+        * date
+        * series_uid
+
+        """
         info[data].append(s.series_id)
     return info
 ```
+
 ---
 ### Creating heuristic keys
 
@@ -113,7 +200,7 @@ def infotodict(seqinfo):
 - Let's extract T1, diffusion, and rest scans
 
 --
-ex.
+
 ```python
 t1w = create_key('sub-{subject}/anat/sub-{subject}_T1w')
 ```
@@ -143,7 +230,6 @@ def infotodict(seqinfo):
 
   - And now for each key, we will look at the `dicominfo.tsv` and set a unique criteria that only that scan will meet.
 
---
 
 ```python
 for idx, s in enumerate(seqinfo):
@@ -213,13 +299,10 @@ for idx, s in enumerate(seqinfo): # each row of dicominfo.tsv
     if (11 <= s.dim3 <= 22) and (s.dim4 == 1) and ('dti' in s.protocol_name):
       info[dwi].append(s.series_id) # append if multiple scans meet criteria
     if (s.dim4 > 10) and ('taskrest' in s.protocol_name):
-      if s.is_motion_corrected: # motion corrected
-        # catch
-      else:
-        # catch
+      if not s.is_motion_corrected: # not motion corrected
 ```
 
-- Extract and label if resting state scans are motion corrected
+- Extract and label if resting state scans are not motion corrected
 
 ---
 ### Using custom formatting conditionally
@@ -231,9 +314,7 @@ for idx, s in enumerate(seqinfo): # each row of dicominfo.tsv
     if (11 <= s.dim3 <= 22) and (s.dim4 == 1) and ('dti' in s.protocol_name):
       info[dwi].append(s.series_id) # append if multiple scans meet criteria
     if (s.dim4 > 10) and ('taskrest' in s.protocol_name):
-      if s.is_motion_corrected: # motion corrected
-        info[rest].append({'item': s.series_id, 'rec': 'corrected'})
-      else:
+      if not s.is_motion_corrected: # not motion corrected
         info[rest].append({'item': s.series_id, 'rec': 'uncorrected'})
 ```
 
@@ -264,9 +345,7 @@ def infotodict(seqinfo):
         if (11 <= s.dim3 <= 22) and (s.dim4 == 1) and ('dti' in s.protocol_name):
           info[dwi].append(s.series_id) # append if multiple series meet criteria
         if (s.dim4 > 10) and ('taskrest' in s.protocol_name):
-            if s.is_motion_corrected: # exclude non motion corrected series
-                info[rest].append({'item': s.series_id, 'rec': 'corrected'})
-            else:
+            if not s.is_motion_corrected:
                 info[rest].append({'item': s.series_id, 'rec': 'uncorrected'})
     return info
 ```

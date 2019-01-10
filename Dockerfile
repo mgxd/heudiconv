@@ -23,6 +23,7 @@ RUN export ND_ENTRYPOINT="/neurodocker/startup.sh" \
            curl \
            locales \
            unzip \
+           tree \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
     && sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
@@ -108,13 +109,16 @@ WORKDIR /examples
 
 RUN datalad install http://datasets.datalad.org/dicoms/dartmouth-phantoms/PHANTOM1_3 && \
     datalad install http://datasets.datalad.org/dicoms/dartmouth-phantoms/bids_test4-20161014/phantom-1 && \
+    rm -rf phantom-1/dwi* phantom-1/fmap* phantom-1/MoCo* && \
     datalad get -J4 PHANTOM1_3 && \
     datalad get -J4 phantom-1
 
 RUN curl -sL https://deb.nodesource.com/setup_10.x | bash -
-RUN apt-get install -y nodejs
+RUN apt-get install -y nodejs vim
 
 RUN npm install -g bids-validator@1.1.0
+
+COPY ["heudiconv/heuristics/convertall.py", "/examples/myheuristic.py"]
 
 ENTRYPOINT ["heudiconv"]
 
