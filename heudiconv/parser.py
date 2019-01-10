@@ -203,7 +203,7 @@ def get_study_sessions(dicom_dir_template, files_opt, heuristic, outdir,
             # actually probably there should be a dedicated exception for
             # heuristics to throw if they detect that the study they are given
             # is not the one they would be willing to work on
-            ids = heuristic.infotoids(seqinfo.keys(), outdir=outdir)
+            ids = heuristic.infotoids(list(seqinfo.keys()), outdir=outdir)
             # TODO:  probably infotoids is doomed to do more and possibly
             # split into multiple sessions!!!! but then it should be provided
             # full seqinfo with files which it would place into multiple groups
