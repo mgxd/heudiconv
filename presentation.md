@@ -287,7 +287,7 @@ for idx, s in enumerate(seqinfo): # each row of dicominfo.tsv
 
 --
 
-- Extract and label if resting state scans are motion corrected
+- Extract and label if resting state scans are not motion corrected
 
 ---
 ### Using custom formatting conditionally
@@ -321,7 +321,7 @@ for idx, s in enumerate(seqinfo): # each row of dicominfo.tsv
 - Extract and label if resting state scans are motion corrected
 
 ---
-### Our finished heuristic (`phantom_heuristic.py`)
+### Our finished heuristic (`demo_heuristic.py`)
 
 ```python
 import os
@@ -352,19 +352,12 @@ def infotodict(seqinfo):
 
 ---
 
-### Step 2: Conversion
+### Finalize our conversion
 
 ```bash
-docker run --rm -it -v /path/to/dicoms:/data:ro \
--v /path/to/output/directory:/output nipy/heudiconv:latest \
--d /data/{subject}/YAROSLAV_DBIC-TEST1/*/*/*IMA -s PHANTOM1_3 \
--f /data/phantom_heuristic.py -b -o /output
+heudiconv -d "/data/{subject}/*/*/*/*IMA" -s PHANTOM1_3 -f demo_heuristic.py -b -o /output2
 ```
 
---
-
-- Clear old output directory
-- Run the docker command!
 - Something missing? Double check your `heuristic` and `dicominfo.tsv`!
 
 ---
