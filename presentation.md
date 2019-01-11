@@ -65,6 +65,7 @@ Here are a few basic `heudiconv` flags to be familiar with:
   conversion rules.
 * `-o, --outdir` : Location to store output
 
+---
 ### Reproin - for the ~~lazy~~ easy converter
 
 - `Heudiconv` includes a variety of built-in
@@ -129,67 +130,7 @@ Run the command!
 ---
 ### Dive into a heuristic file
 
-```python
-import os
-
-def create_key(template, outtype=('nii.gz',), annotation_classes=None):
-    if template is None or not template:
-        raise ValueError('Template must be a valid format string')
-    return template, outtype, annotation_classes
-
-def infotodict(seqinfo):
-    """Heuristic evaluator for determining which runs belong where
-
-    allowed template fields - follow python string module:
-
-    item: index within category
-    subject: participant id
-    seqitem: run number during scanning
-    subindex: sub index within group
-    session: ses-[sessionID]
-    bids_subject_session_dir: BIDS subject/session directory
-    bids_subject_session_prefix: BIDS subject/session prefix
-    """
-
-    data = create_key('run{item:03d}')
-
-    info = {data: []}
-
-    for s in seqinfo:
-        """
-        The namedtuple `s` contains the following fields:
-
-        * total_files_till_now
-        * example_dcm_file
-        * series_id
-        * dcm_dir_name
-        * unspecified2
-        * unspecified3
-        * dim1
-        * dim2
-        * dim3
-        * dim4
-        * TR
-        * TE
-        * protocol_name
-        * is_motion_corrected
-        * is_derived
-        * patient_id
-        * study_description
-        * referring_physician_name
-        * series_description
-        * sequence_name
-        * image_type
-        * accession_number
-        * patient_age
-        * patient_sex
-        * date
-        * series_uid
-
-        """
-        info[data].append(s.series_id)
-    return info
-```
+[Link to convert all heuristic](https://raw.githubusercontent.com/mgxd/heudiconv/coco2019/heudiconv/heuristics/convertall.py)
 
 ---
 ### Creating heuristic keys
@@ -317,7 +258,7 @@ for idx, s in enumerate(seqinfo): # each row of dicominfo.tsv
         info[rest].append({'item': s.series_id, 'rec': 'uncorrected'})
 ```
 
-- Extract and label if resting state scans are motion corrected
+- Extract and label if resting state scans are not motion corrected
 
 ---
 ### Our finished heuristic (`demo_heuristic.py`)
@@ -354,7 +295,7 @@ def infotodict(seqinfo):
 ### Finalize our conversion
 
 ```bash
-heudiconv -d "/data/{subject}/*/*/*/*IMA" -s PHANTOM1_3 -f demo_heuristic.py -b -o /output2
+heudiconv -d "/examples/{subject}/*/*/*/*IMA" -s PHANTOM1_3 -f demo_heuristic.py -b -o /output2
 ```
 
 - You can also download the created heuristic with the command:
