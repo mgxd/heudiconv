@@ -4,7 +4,6 @@ import os.path as op
 import logging
 from collections import OrderedDict
 import tarfile
-from nibabel.nicom import csareader
 from heudiconv.external.pydicom import dcm
 
 from .utils import SeqInfo, load_json, set_readonly
@@ -70,7 +69,7 @@ def group_dicoms_into_seqinfos(files, file_filter, dcmfilter, grouping):
         try:
             file_studyUID = mw.dcm_data.StudyInstanceUID
         except AttributeError:
-            lgr.info("File {} is missing any StudyInstanceUID".format(filename))
+            lgr.info("File {} is missing a StudyInstanceUID".format(filename))
             file_studyUID = None
 
         # Workaround for protocol name in private siemens csa header
@@ -122,10 +121,11 @@ def group_dicoms_into_seqinfos(files, file_filter, dcmfilter, grouping):
             if mw.is_same_series(mwgroup[idx]):
                 # the same series should have the same study uuid
                 if (mwgroup[idx].dcm_data.get('StudyInstanceUID', None) !=
-                        file_studyUID)
-                    if grouping != 'all'):
+                        file_studyUID):
+                    if grouping != 'all':
                         # complain
-                        raise AttributeError("DICOM StudyInstanceUID differs from studyUID")
+                        raise AttributeError(
+                            "DICOM StudyInstanceUID differs from studyUID")
                     lgr.warning("Different StudyInstanceUIDs found")
                 ingrp = True
                 if series_id[0] >= 0:
@@ -158,8 +158,11 @@ def group_dicoms_into_seqinfos(files, file_filter, dcmfilter, grouping):
             # nothing to see here, just move on
             continue
         dcminfo = mw.dcm_data
+
+        # volumes or multi-echo
         series_files = [files[i] for i, s in enumerate(groups[0])
                         if s == series_id]
+
         # turn the series_id into a human-readable string -- string is needed
         # for JSON storage later on
         if per_studyUID:
@@ -198,10 +201,10 @@ def group_dicoms_into_seqinfos(files, file_filter, dcmfilter, grouping):
 
         motion_corrected = 'MOCO' in image_type
 
-        if dcminfo.get([0x18,0x24], None):
+        if dcminfo.get([0x18, 0x24], None) is not None:
             # GE and Philips scanners
             sequence_name = dcminfo[0x18,0x24].value
-        elif dcminfo.get([0x19, 0x109c], None):
+        elif dcminfo.get([0x19, 0x109c], None) is not None:
             # Siemens scanners
             sequence_name = dcminfo[0x19, 0x109c].value
         else:
@@ -366,8 +369,8 @@ def embed_nifti(dcmfiles, niftifile, infofile, bids_info, force, min_meta):
     both niftifile and infofile?)
 
     if `niftifile` exists, its affine's orientation information is used while
-    establishing new `NiftiImage` out of dicom stack and together with `bids_info`
-    (if provided) is dumped into json `infofile`
+    establishing new `NiftiImage` out of dicom stack and together with
+    `bids_info` (if provided) is dumped into json `infofile`
 
     Parameters
     ----------
@@ -522,7 +525,8 @@ def parse_private_csa_header(dcm_data, public_attr, private_attr, default=None):
     import dcmstack.extract as dsextract
     try:
         # TODO: test with attr besides ProtocolName
-        csastr = csareader.get_csa_header(dcm_data, 'series')['tags']['MrPhoenixProtocol']['items'][0]
+        csastr = csareader.get_csa_header(
+            dcm_data, 'series')['tags']['MrPhoenixProtocol']['items'][0]
         csastr = csastr.replace("### ASCCONV BEGIN", "### ASCCONV BEGIN ### ")
         parsedhdr = dsextract.parse_phoenix_prot('MrPhoenixProtocol', csastr)
         val = parsedhdr[private_attr].replace(' ', '')
