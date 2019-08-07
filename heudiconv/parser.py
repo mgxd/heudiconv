@@ -105,7 +105,7 @@ def get_extracted_dicoms(fl):
 
 
 def get_study_sessions(dicom_dir_template, files_opt, heuristic, outdir,
-                       session, sids, grouping='studyUID'):
+                       session, sids, grouping='studyUID', split_echoes=False):
     """Given options from cmdline sort files or dicom seqinfos into
     study_sessions which put together files for a single session of a subject
     in a study
@@ -166,7 +166,8 @@ def get_study_sessions(dicom_dir_template, files_opt, heuristic, outdir,
             grouping,
             file_filter=getattr(heuristic, 'filter_files', None),
             dcmfilter=getattr(heuristic, 'filter_dicom', None),
-            custom_grouping=getattr(heuristic, 'grouping', None)
+            custom_grouping=getattr(heuristic, 'grouping', None),
+            split_echoes=split_echoes,
         )
 
         if sids:

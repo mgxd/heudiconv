@@ -221,6 +221,8 @@ def get_parser():
                         help='Random seed to initialize RNG')
     parser.add_argument('--dcmconfig', default=None,
                         help='JSON file for additional dcm2niix configuration')
+    parser.add_argument('--split-echoes', action='store_true',
+                        help='Separate series by echoes')
     submission = parser.add_argument_group('Conversion submission options')
     submission.add_argument('-q', '--queue', choices=("SLURM", None),
                             default=None,
@@ -264,7 +266,8 @@ def process_args(args):
 
     study_sessions = get_study_sessions(args.dicom_dir_template, args.files,
                                         heuristic, outdir, args.session,
-                                        args.subjs, grouping=args.grouping)
+                                        args.subjs, grouping=args.grouping,
+                                        split_echoes=args.split_echoes)
 
     # extract tarballs, and replace their entries with expanded lists of files
     # TODO: we might need to sort so sessions are ordered???
@@ -329,7 +332,8 @@ def process_args(args):
                         min_meta=args.minmeta,
                         overwrite=args.overwrite,
                         dcmconfig=args.dcmconfig,
-                        grouping=args.grouping,)
+                        grouping=args.grouping,
+                        split_echoes=args.split_echoes)
 
         lgr.info("PROCESSING DONE: {0}".format(
             str(dict(subject=sid, outdir=study_outdir, session=session))))

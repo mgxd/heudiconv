@@ -3,5 +3,6 @@
 .coverage
 *.egg-info/
 .idea/
+.vscode/
 venvs/
 _build/

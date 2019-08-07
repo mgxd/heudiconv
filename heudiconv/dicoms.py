@@ -52,7 +52,7 @@ def create_seqinfo(mw, series_files, series_id):
     else:
         sequence_name = ""
 
-    # initialized in `group_dicoms_to_seqinfos`
+    # counter for processed files
     global total_files
     total_files += len(series_files)
 
@@ -131,7 +131,7 @@ def validate_dicom(fl, dcmfilter):
 
 def group_dicoms_into_seqinfos(files, grouping, file_filter=None,
                                dcmfilter=None, flatten=False,
-                               custom_grouping=None):
+                               custom_grouping=None, split_echoes=False):
     """Process list of dicoms and return seqinfo and file group
     `seqinfo` contains per-sequence extract of fields from DICOMs which
     will be later provided into heuristics to decide on filenames
@@ -194,6 +194,14 @@ def group_dicoms_into_seqinfos(files, grouping, file_filter=None,
         if per_studyUID:
             series_id = series_id + (file_studyUID,)
 
+        if split_echoes:
+            echonum = get_typed_attr(mw.dcm_data, 'EchoNumbers', int, -1)
+            # if there is no echo number information, use echotime instead
+            if not echonum:
+                echonum = get_typed_attr(mw.dcm_data, 'EchoTime', float, -1)
+            series_id = series_id + (echonum,)
+
+
         if flatten:
             if custom_grouping:
                 file_customgroup = mw.dcm_data.get(grouping)
@@ -247,7 +255,10 @@ def group_dicoms_into_seqinfos(files, grouping, file_filter=None,
         series_files = [files[i] for i, s in enumerate(groups[0]) if s == series_id]
         if per_studyUID:
             studyUID = series_id[2]
-            series_id = series_id[:2]
+            if split_echoes:
+                series_id = series_id[:2] + (series_id[3],)
+            else:
+                series_id = series_id[:2]
         series_id = '-'.join(map(str, series_id))
         if mw.image_shape is None:
             # this whole thing has no image data (maybe just PSg DICOMs)

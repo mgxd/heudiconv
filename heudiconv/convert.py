@@ -34,6 +34,8 @@ from .dicoms import (
 
 lgr = logging.getLogger(__name__)
 
+tostr = str if sys.version_info[0] >= 3 else unicode
+
 
 def conversion_info(subject, outdir, info, filegroup, ses):
     convert_info = []
@@ -67,11 +69,12 @@ def conversion_info(subject, outdir, info, filegroup, ses):
                     # referring_physician_name
                     # study_description
                     ))
+                import pdb; pdb.set_trace()
                 try:
-                    files = filegroup[item]
+                    files = filegroup[tostr(item)]
                 except KeyError:
-                    PY3 = sys.version_info[0] >= 3
-                    files = filegroup[(str if PY3 else unicode)(item)]
+                    lgr.critical("Item %s not found in filegroup", item)
+                    continue
                 outprefix = template.format(**parameters)
                 convert_info.append((op.join(outpath, outprefix),
                                     outtype, files))
@@ -79,8 +82,8 @@ def conversion_info(subject, outdir, info, filegroup, ses):
 
 
 def prep_conversion(sid, dicoms, outdir, heuristic, converter, anon_sid,
-                    anon_outdir, with_prov, ses, bids_options, seqinfo, 
-                    min_meta, overwrite, dcmconfig, grouping):
+                    anon_outdir, with_prov, ses, bids_options, seqinfo,
+                    min_meta, overwrite, dcmconfig, grouping, split_echoes):
     if dicoms:
         lgr.info("Processing %d dicoms", len(dicoms))
     elif seqinfo:
@@ -117,7 +120,7 @@ def prep_conversion(sid, dicoms, outdir, heuristic, converter, anon_sid,
     # if conversion table(s) do not exist -- we need to prepare them
     # (the *prepare* stage in https://github.com/nipy/heudiconv/issues/134)
     # if overwrite - recalculate this anyways
-    reuse_conversion_table = op.exists(edit_file)
+    reuse_conversion_table = op.exists(edit_file) and not split_echoes
     # We also might need to redo it if changes in the heuristic file
     # detected
     # ref: https://github.com/nipy/heudiconv/issues/84#issuecomment-330048609
@@ -125,7 +128,10 @@ def prep_conversion(sid, dicoms, outdir, heuristic, converter, anon_sid,
     target_heuristic_filename = op.join(idir, 'heuristic.py')
     # faciliates change - TODO: remove in 1.0
     old_heuristic_filename = op.join(idir, op.basename(heuristic.filename))
-    if op.exists(old_heuristic_filename):
+    if (
+        target_heuristic_filename != old_heuristic_filename and
+        op.exists(old_heuristic_filename)
+    ):
         assure_no_file_exists(target_heuristic_filename)
         safe_copyfile(old_heuristic_filename, target_heuristic_filename)
         assure_no_file_exists(old_heuristic_filename)
@@ -165,10 +171,12 @@ def prep_conversion(sid, dicoms, outdir, heuristic, converter, anon_sid,
                 file_filter=getattr(heuristic, 'filter_files', None),
                 dcmfilter=getattr(heuristic, 'filter_dicom', None),
                 flatten=True,
-                custom_grouping=getattr(heuristic, 'grouping', None))
+                custom_grouping=getattr(heuristic, 'grouping', None),
+                split_echoes=split_echoes)
 
         seqinfo_list = list(seqinfo.keys())
         filegroup = {si.series_id: x for si, x in seqinfo.items()}
+
         dicominfo_file = op.join(idir, 'dicominfo%s.tsv' % ses_suffix)
         # allow to overwrite even if was present under git-annex already
         assure_no_file_exists(dicominfo_file)
@@ -507,104 +515,6 @@ def save_converted_files(res, item_dicoms, bids_options, outtype, prefix, outnam
         bids_files = sorted(res.outputs.bids
                      if len(res.outputs.bids) == len(res_files)
                      else [None] * len(res_files))
-
-        ###   Do we have a multi-echo series?   ###
-        #   Some Siemens sequences (e.g. CMRR's MB-EPI) set the label 'TE1',
-        #   'TE2', etc. in the 'ImageType' field. However, other seqs do not
-        #   (e.g. MGH ME-MPRAGE). They do set a 'EchoNumber', but not for the
-        #   first echo.  To compound the problem, the echoes are NOT in order,
-        #   so the first NIfTI file does not correspond to echo-1, etc. So, we
-        #   need to know, beforehand, whether we are dealing with a multi-echo
-        #   series. To do that, the most straightforward way is to read the
-        #   echo times for all bids_files and see if they are all the same or not.
-
-        # Check for varying echo times
-        echo_times = set(
-            load_json(b).get('EchoTime', None)
-            for b in bids_files
-            if b
-        )
-
-        is_multiecho = len(echo_times) > 1
-
-        ### Loop through the bids_files, set the output name and save files
-        for fl, suffix, bids_file in zip(res_files, suffixes, bids_files):
-
-            # TODO: monitor conversion duration
-            if bids_file:
-                fileinfo = load_json(bids_file)
-
-            # set the prefix basename for this specific file (we'll modify it,
-            # and we don't want to modify it for all the bids_files):
-            this_prefix_basename = prefix_basename
-
-            # _sbref sequences reconstructing magnitude and phase generate
-            # two NIfTI files IN THE SAME SERIES, so we cannot just add
-            # the suffix, if we want to be bids compliant:
-            if bids_file and this_prefix_basename.endswith('_sbref'):
-                # Check to see if it is magnitude or phase reconstruction:
-                if 'M' in fileinfo.get('ImageType'):
-                    mag_or_phase = 'magnitude'
-                elif 'P' in fileinfo.get('ImageType'):
-                    mag_or_phase = 'phase'
-                else:
-                    mag_or_phase = suffix
-
-                # Insert reconstruction label
-                if not ("_rec-%s" % mag_or_phase) in this_prefix_basename:
-
-                    # If "_rec-" is specified, prepend the 'mag_or_phase' value.
-                    if ('_rec-' in this_prefix_basename):
-                        raise BIDSError(
-                        "Reconstruction label for multi-echo single-band"
-                        " reference images will be automatically set, remove"
-                        " from heuristic"
-                        )
-
-                    # If not, insert "_rec-" + 'mag_or_phase' into the prefix_basename
-                    #   **before** "_run", "_echo" or "_sbref", whichever appears first:
-                    for label in ['_run', '_echo', '_sbref']:
-                        if (label in this_prefix_basename):
-                            this_prefix_basename = this_prefix_basename.replace(
-                                label, "_rec-%s%s" % (mag_or_phase, label)
-                            )
-                            break
-
-            # Now check if this run is multi-echo
-            # (Note: it can be _sbref and multiecho, so don't use "elif"):
-            # For multi-echo sequences, we have to specify the echo number in
-            # the file name:
-            if bids_file and is_multiecho:
-                # Get the EchoNumber from json file info.  If not present, it's echo-1
-                echo_number = fileinfo.get('EchoNumber', 1)
-
-
-                supported_multiecho = ['_bold', '_epi', '_sbref', '_T1w', '_PDT2']
-                # Now, decide where to insert it.
-                # Insert it **before** the following string(s), whichever appears first.
-                for imgtype in supported_multiecho:
-                    if (imgtype in this_prefix_basename):
-                        this_prefix_basename = this_prefix_basename.replace(
-                            imgtype, "_echo-%d%s" % (echo_number, imgtype)
-                        )
-                        break
-
-            # Fallback option:
-            # If we have failed to modify this_prefix_basename, because it didn't fall
-            #   into any of the options above, just add the suffix at the end:
-            if this_prefix_basename == prefix_basename:
-                this_prefix_basename += suffix
-
-            # Finally, form the outname by stitching the directory and outtype:
-            outname = op.join(prefix_dirname, this_prefix_basename)
-            outfile = outname + '.' + outtype
-
-            # Write the files needed:
-            safe_copyfile(fl, outfile, overwrite)
-            if bids_file:
-                outname_bids_file = "%s.json" % (outname)
-                safe_copyfile(bids_file, outname_bids_file, overwrite)
-                bids_outfiles.append(outname_bids_file)
 
     # res_files is not a list
     else:
