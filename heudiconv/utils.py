@@ -79,7 +79,7 @@ class TempDirs(object):
     def __del__(self):
         try:
             self.cleanup()
-        except AttributeError:
+        except Exception:  # cover WindowsError
             pass
 
     def cleanup(self):
