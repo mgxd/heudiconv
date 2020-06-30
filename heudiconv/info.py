@@ -40,7 +40,8 @@ TESTS_REQUIRES = [
 EXTRA_REQUIRES = {
     'tests': TESTS_REQUIRES,
     'extras': [],  # Requires patched version ATM ['dcmstack'],
-    'datalad': ['datalad >=0.12.3']
+    'datalad': ['datalad >=0.12.3'],
+    'autogen': ['fuzzywuzzy']
 }
 
 # Flatten the lists
